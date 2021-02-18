@@ -26,7 +26,8 @@ namespace EntityFrameworkCore.TemporalTables.Query
                 var select = (SelectExpression)selectContructor.Invoke(new object[] { entityType, asOfTableExpression });
 
                 var privateInitializer = typeof(SqlExpressionFactory).GetMethod("AddConditions", BindingFlags.NonPublic | BindingFlags.Instance);
-                privateInitializer.Invoke(this, new object[] { select, entityType, null, null });
+                // Change in AddConditions arguments
+                privateInitializer.Invoke(this, new object[] { select, entityType, null });
 
                 return select;
             }

@@ -16,6 +16,8 @@ namespace EntityFrameworkCore.TemporalTables.Query
         private ISqlGenerationHelper _sqlGenerationHelper;
         private readonly RelationalQueryContext _ctx;
         private IRelationalCommandBuilder _commandbuilder;
+        
+        public ParameterExpression FirstAsOfDate { get; set; }
 
         [SuppressMessage("Usage", "EF1001:Internal EF Core API usage.")]
         public AsOfQuerySqlGenerator(
@@ -54,13 +56,19 @@ namespace EntityFrameworkCore.TemporalTables.Query
 
             Sql.Append(_sqlGenerationHelper.DelimitIdentifier(tableExpression.Name, tableExpression.Schema));
 
-            if (tableExpression.AsOfDate != null)
+            if (tableExpression.AsOfDate != null || FirstAsOfDate != null)
             {
-                var name = TEMPORAL_PARAMETER_PREFIX + tableExpression.AsOfDate.Name;
+                var asOffDate = tableExpression?.AsOfDate ?? FirstAsOfDate;
+
+                var name = TEMPORAL_PARAMETER_PREFIX + asOffDate.Name;
                 Sql.Append($" FOR SYSTEM_TIME AS OF @{name}"); //2020-02-28T11:00:00
 
-                if (!_commandbuilder.Parameters.Any(x => x.InvariantName == tableExpression.AsOfDate.Name))
-                    _commandbuilder.AddParameter(tableExpression.AsOfDate.Name, name);
+                if (_commandbuilder.Parameters.All(x => x.InvariantName != asOffDate.Name))
+                    _commandbuilder.AddParameter(asOffDate.Name, name);
+
+                // Pushes FirstAsOfDate down through to all Temporal tables
+                if (tableExpression.AsOfDate != null && FirstAsOfDate == null)
+                    FirstAsOfDate = tableExpression.AsOfDate; 
             }
             
             Sql

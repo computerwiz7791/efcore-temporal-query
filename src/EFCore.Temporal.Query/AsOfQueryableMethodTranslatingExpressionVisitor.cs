@@ -17,11 +17,10 @@ namespace EntityFrameworkCore.TemporalTables.Query
     {
         private readonly RelationalQueryableMethodTranslatingExpressionVisitorDependencies _relationalDependencies;
         private readonly QueryCompilationContext _queryCompilationContext;
-        private readonly IModel _model;
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
         private ParameterExpression _asOfDateParameter;
 
-        protected AsOfQueryableMethodTranslatingExpressionVisitor(
+        private AsOfQueryableMethodTranslatingExpressionVisitor(
             [NotNull] AsOfQueryableMethodTranslatingExpressionVisitor parentVisitor)
             : base(parentVisitor)
         {
@@ -31,14 +30,14 @@ namespace EntityFrameworkCore.TemporalTables.Query
         }
 
         public AsOfQueryableMethodTranslatingExpressionVisitor(
-            QueryableMethodTranslatingExpressionVisitorDependencies dependencies,
-            RelationalQueryableMethodTranslatingExpressionVisitorDependencies relationalDependencies,
-            IModel model,
-            ParameterExpression asOfDateParameter = null
-            ) : base(dependencies, relationalDependencies, model)
+			QueryableMethodTranslatingExpressionVisitorDependencies dependencies, 
+			RelationalQueryableMethodTranslatingExpressionVisitorDependencies relationalDependencies, 
+			QueryCompilationContext queryCompilationContext, 
+			ParameterExpression asOfDateParameter = null
+            ) : base(dependencies, relationalDependencies, queryCompilationContext)
         {
             _relationalDependencies = relationalDependencies;
-            _model = model;
+            _queryCompilationContext = queryCompilationContext;
             _asOfDateParameter = asOfDateParameter;
 
             var sqlExpressionFactory = relationalDependencies.SqlExpressionFactory;
@@ -68,7 +67,15 @@ namespace EntityFrameworkCore.TemporalTables.Query
                     case nameof(SqlServerAsOfQueryableExtensions.AsOf):
                         // capture the date parameter for use by all AsOfTableExpression instances
                         _asOfDateParameter = Visit(methodCallExpression.Arguments[1]) as ParameterExpression;
-                        return Visit(methodCallExpression.Arguments[0]);
+                        var visitMethodCall = Visit(methodCallExpression.Arguments[0]);
+                        
+                        if (null != _asOfDateParameter && visitMethodCall is ShapedQueryExpression shapedExpression)
+                        {
+                            // attempt to apply the captured date parameter to any select-from-table expressions
+                            shapedExpression.TrySetDateParameter(_asOfDateParameter);
+                        }
+
+                        return visitMethodCall;
                 }
             }
 

@@ -1,3 +1,5 @@
+using System;
+using EntityFrameworkCore.TemporalTables.Extensions;
 using EntityFrameworkCore.TemporalTables.Query;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -14,15 +16,24 @@ namespace Microsoft.EntityFrameworkCore
         {
             entity.Metadata.SetAnnotation(ANNOTATION_TEMPORAL, true);
             return entity;
+        }   
+        
+        public static EntityTypeBuilder HasTemporalTable(this EntityTypeBuilder entity) 
+        {
+            entity.Metadata.SetAnnotation(ANNOTATION_TEMPORAL, true);
+            return entity;
         }
 
-        public static DbContextOptionsBuilder EnableTemporalTableQueries([NotNull] this DbContextOptionsBuilder optionsBuilder)
+        public static DbContextOptionsBuilder EnableTemporalTableQueries(this DbContextOptionsBuilder optionsBuilder)
         {
             // If service provision is NOT being performed internally, we cannot replace services.
             var coreOptions = optionsBuilder.Options.GetExtension<CoreOptionsExtension>();
             if (coreOptions.InternalServiceProvider == null)
             {
                 return optionsBuilder
+                    // replace the service responsible for checking SqlNullability
+                    // https://github.com/Adam-Langley/efcore-temporal-query/issues/7
+                    .ReplaceService<IRelationalParameterBasedSqlProcessorFactory, TemporalRelationalParameterBasedSqlProcessorFactory>()
                     // replace the service responsible for generating SQL strings
                     .ReplaceService<IQuerySqlGeneratorFactory, AsOfQuerySqlGeneratorFactory>()
                     // replace the service responsible for traversing the Linq AST (a.k.a Query Methods)

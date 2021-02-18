@@ -1,6 +1,6 @@
 # efcore-temporal-query
 
-Linq extensions to Entity Framework Core 3.1 to support [Microsoft SQL Server Temporal Table](https://docs.microsoft.com/en-us/sql/relational-databases/tables/temporal-tables) querying.
+Linq extensions to Entity Framework Core 5.0 to support [Microsoft SQL Server Temporal Table](https://docs.microsoft.com/en-us/sql/relational-databases/tables/temporal-tables) querying.
 
 This extension was created to supplement the work planned by Microsoft, discussed [here](https://github.com/dotnet/efcore/issues/4693).
 
@@ -56,6 +56,38 @@ public static void Configure(DbContextOptionsBuilder<DbContext> builder, string 
     builder
         .UseSqlServer(connectionString)
         .EnableTemporalTableQueries(); // here we enable the temporal table sql generator
+}
+```
+
+For AspNetCore w/o using UseInternalServiceProvider
+```csharp
+using Microsoft.EntityFrameworkCore;
+
+...
+
+public static void ConfigureServices(IServiceCollection services)
+{
+    services.AddDbContext<DbContext>(options => 
+        options.UseSqlServer(connectionString)
+        .EnableTemporalTableQueries()); // here we enable the temporal table sql generator
+}
+```
+
+For AspNetCore using UseInternalServiceProvider
+```csharp
+using Microsoft.EntityFrameworkCore;
+
+...
+
+public static void ConfigureServices(IServiceCollection services)
+{
+    services.AddDbContext<DbContext>((provider,options) => 
+		{
+			options.UseSqlServer(connectionString);
+			options.UseInternalServiceProvider(provider);
+		});
+	services.AddEntityFrameworkSqlServer();
+	services.RegisterTemporalQueriesForDatabase<DbContext>();
 }
 ```
 
